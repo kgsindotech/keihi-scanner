@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useApp } from '@/lib/store';
 import { t } from '@/lib/i18n';
 import { taxCategories, paymentMethods } from '@/lib/categories';
+import { CheckCircleIcon, ChartIcon, TaxIcon, SpinnerIcon, AlertIcon } from './Icons';
 import type { ReceiptData, Expense } from '@/lib/store';
 import type { Destination, TaxSheetType } from '@/lib/categories';
 
@@ -78,85 +79,102 @@ export function ReviewForm({ receiptData, receiptImage, onReset }: Props) {
 
     setTimeout(() => {
       onReset();
-    }, 2000);
+    }, 2500);
   };
 
   if (saved) {
     return (
-      <div className="text-center py-12">
-        <div className="text-5xl mb-4">✅</div>
-        <p className="text-lg font-semibold text-green-600">{t(locale, 'actionSaved')}</p>
-        {saveError && (
-          <p className="text-sm text-yellow-600 mt-2">
-            {locale === 'ja' ? '⚠️ ローカル保存済み。Googleシートへの保存に失敗: ' : '⚠️ Saved locally. Google Sheets failed: '}
-            {saveError}
-          </p>
-        )}
-        {!saveError && (
+      <div className="text-center py-16 animate-fade-in-up">
+        <div className="animate-success-bounce inline-block">
+          <div className="w-20 h-20 mx-auto rounded-full bg-gradient-success flex items-center justify-center shadow-lg">
+            <CheckCircleIcon size={40} className="text-white" />
+          </div>
+        </div>
+        <p className="text-xl font-bold text-gray-800 mt-6">{t(locale, 'actionSaved')}</p>
+        {saveError ? (
+          <div className="mt-3 flex items-center justify-center gap-2 text-amber-600">
+            <AlertIcon size={16} />
+            <p className="text-sm">
+              {locale === 'ja' ? 'ローカル保存済み。Googleシートへの保存に失敗' : 'Saved locally. Google Sheets failed'}
+            </p>
+          </div>
+        ) : (
           <p className="text-sm text-gray-400 mt-2">
-            {locale === 'ja' ? '📊 Googleシートに保存しました' : '📊 Saved to Google Sheets'}
+            {locale === 'ja' ? 'Googleシートに保存しました' : 'Saved to Google Sheets'}
           </p>
         )}
       </div>
     );
   }
 
-  return (
-    <div className="space-y-4">
-      <h2 className="text-lg font-semibold">{t(locale, 'scanReview')}</h2>
+  const confidenceColor = data.confidence >= 80 ? 'from-emerald-500 to-green-400' : data.confidence >= 50 ? 'from-amber-500 to-yellow-400' : 'from-red-500 to-rose-400';
+  const confidenceText = data.confidence >= 80 ? 'text-emerald-600' : data.confidence >= 50 ? 'text-amber-600' : 'text-red-600';
 
-      {/* Receipt thumbnail */}
-      <div className="flex gap-3 items-start">
-        <img src={receiptImage} alt="Receipt" className="w-20 h-20 object-cover rounded-lg border" />
-        <div className="flex-1 text-sm text-gray-500">
-          {locale === 'ja' ? 'AI信頼度' : 'AI Confidence'}: {data.confidence}%
-          <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
-            <div
-              className={`h-2 rounded-full ${data.confidence >= 80 ? 'bg-green-500' : data.confidence >= 50 ? 'bg-yellow-500' : 'bg-red-500'}`}
-              style={{ width: `${data.confidence}%` }}
-            />
+  return (
+    <div className="space-y-4 animate-fade-in-up">
+      <h2 className="text-lg font-bold">{t(locale, 'scanReview')}</h2>
+
+      {/* Receipt thumbnail + confidence */}
+      <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+        <div className="flex gap-4 items-start">
+          <img src={receiptImage} alt="Receipt" className="w-20 h-24 object-cover rounded-xl border border-gray-100 shadow-sm" />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-baseline justify-between mb-2">
+              <span className="text-xs font-medium text-gray-500">
+                {locale === 'ja' ? 'AI信頼度' : 'AI Confidence'}
+              </span>
+              <span className={`text-sm font-bold ${confidenceText}`}>{data.confidence}%</span>
+            </div>
+            <div className="w-full bg-gray-100 rounded-full h-2.5">
+              <div
+                className={`h-2.5 rounded-full bg-gradient-to-r ${confidenceColor} transition-all duration-500`}
+                style={{ width: `${data.confidence}%` }}
+              />
+            </div>
+            <p className="text-lg font-bold mt-3">¥{data.amount.toLocaleString('ja-JP')}</p>
+            <p className="text-sm text-gray-500 truncate">{data.vendor}</p>
           </div>
         </div>
       </div>
 
       {/* Editable Fields */}
-      <div className="space-y-3">
+      <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm space-y-4">
         <label className="block">
-          <span className="text-sm font-medium text-gray-700">{t(locale, 'fieldDate')}</span>
+          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t(locale, 'fieldDate')}</span>
           <input
             type="date"
             value={data.date}
             onChange={(e) => update('date', e.target.value)}
-            className="mt-1 block w-full rounded-xl border border-gray-300 px-4 py-3 text-base focus:border-blue-500 focus:ring-blue-500"
+            className="mt-1.5 block w-full rounded-xl border border-gray-200 px-4 py-3 text-base bg-gray-50/50"
           />
         </label>
 
         <label className="block">
-          <span className="text-sm font-medium text-gray-700">{t(locale, 'fieldAmount')} (¥)</span>
+          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t(locale, 'fieldAmount')} (¥)</span>
           <input
             type="number"
             value={data.amount}
             onChange={(e) => update('amount', parseFloat(e.target.value) || 0)}
-            className="mt-1 block w-full rounded-xl border border-gray-300 px-4 py-3 text-base font-semibold text-lg focus:border-blue-500 focus:ring-blue-500"
+            className="mt-1.5 block w-full rounded-xl border border-gray-200 px-4 py-3 text-lg font-bold bg-gray-50/50"
           />
         </label>
 
         <label className="block">
-          <span className="text-sm font-medium text-gray-700">{t(locale, 'fieldVendor')}</span>
+          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t(locale, 'fieldVendor')}</span>
           <input
             type="text"
             value={data.vendor}
             onChange={(e) => update('vendor', e.target.value)}
-            className="mt-1 block w-full rounded-xl border border-gray-300 px-4 py-3 text-base focus:border-blue-500 focus:ring-blue-500"
+            className="mt-1.5 block w-full rounded-xl border border-gray-200 px-4 py-3 text-base bg-gray-50/50"
           />
         </label>
 
         <label className="block">
-          <span className="text-sm font-medium text-gray-700">{t(locale, 'taxCatTitle')}</span>
+          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t(locale, 'taxCatTitle')}</span>
           <select
             value={data.taxCategory}
             onChange={(e) => update('taxCategory', e.target.value)}
-            className="mt-1 block w-full rounded-xl border border-gray-300 px-4 py-3 text-base focus:border-blue-500 focus:ring-blue-500"
+            className="mt-1.5 block w-full rounded-xl border border-gray-200 px-4 py-3 text-base bg-gray-50/50 appearance-none"
           >
             {taxCategories.map(cat => (
               <option key={cat.ja} value={cat.ja}>
@@ -167,11 +185,11 @@ export function ReviewForm({ receiptData, receiptImage, onReset }: Props) {
         </label>
 
         <label className="block">
-          <span className="text-sm font-medium text-gray-700">{t(locale, 'fieldPaymentMethod')}</span>
+          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t(locale, 'fieldPaymentMethod')}</span>
           <select
             value={data.paymentMethod}
             onChange={(e) => update('paymentMethod', e.target.value)}
-            className="mt-1 block w-full rounded-xl border border-gray-300 px-4 py-3 text-base focus:border-blue-500 focus:ring-blue-500"
+            className="mt-1.5 block w-full rounded-xl border border-gray-200 px-4 py-3 text-base bg-gray-50/50 appearance-none"
           >
             {paymentMethods.map(pm => (
               <option key={pm.ja} value={pm.ja}>
@@ -183,13 +201,13 @@ export function ReviewForm({ receiptData, receiptImage, onReset }: Props) {
 
         {/* Tax sheet type */}
         <label className="block">
-          <span className="text-sm font-medium text-gray-700">
+          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
             {locale === 'ja' ? 'シート区分' : 'Tax Sheet Type'}
           </span>
           <select
             value={data.taxSheetType}
             onChange={(e) => update('taxSheetType', e.target.value)}
-            className="mt-1 block w-full rounded-xl border border-gray-300 px-4 py-3 text-base focus:border-blue-500 focus:ring-blue-500"
+            className="mt-1.5 block w-full rounded-xl border border-gray-200 px-4 py-3 text-base bg-gray-50/50 appearance-none"
           >
             <option value="bank">{t(locale, 'taxSheetBank')}</option>
             <option value="other">{t(locale, 'taxSheetOther')}</option>
@@ -197,10 +215,10 @@ export function ReviewForm({ receiptData, receiptImage, onReset }: Props) {
         </label>
 
         <label className="block">
-          <span className="text-sm font-medium text-gray-700">
+          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
             {t(locale, 'fieldNotes')}
             {locale === 'en' && data.notesEn && (
-              <span className="text-xs text-gray-400 ml-2">({data.notesEn})</span>
+              <span className="text-gray-400 normal-case font-normal ml-2">({data.notesEn})</span>
             )}
           </span>
           <textarea
@@ -208,35 +226,46 @@ export function ReviewForm({ receiptData, receiptImage, onReset }: Props) {
             onChange={(e) => update('notes', e.target.value)}
             rows={2}
             placeholder={locale === 'en' ? data.notesEn : ''}
-            className="mt-1 block w-full rounded-xl border border-gray-300 px-4 py-3 text-base focus:border-blue-500 focus:ring-blue-500"
+            className="mt-1.5 block w-full rounded-xl border border-gray-200 px-4 py-3 text-base bg-gray-50/50 resize-none"
           />
-          <span className="text-xs text-gray-400 mt-1 block">
+          <span className="text-[10px] text-gray-400 mt-1 block">
             {locale === 'en' ? '* Notes saved in Japanese for tax filing' : '* 日本語で保存されます（確定申告用）'}
           </span>
         </label>
       </div>
 
       {/* Destination Selector */}
-      <div>
-        <p className="text-sm font-medium text-gray-700 mb-2">{t(locale, 'destTitle')}</p>
+      <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{t(locale, 'destTitle')}</p>
         <div className="grid grid-cols-3 gap-2">
           {(['monthly', 'tax', 'both'] as Destination[]).map(dest => (
             <button
               key={dest}
               onClick={() => setDestination(dest)}
-              className={`p-3 rounded-xl border-2 text-center transition-all ${
+              className={`p-3 rounded-xl border-2 text-center transition-all active:scale-[0.97] ${
                 destination === dest
-                  ? 'border-blue-500 bg-blue-50 text-blue-700'
-                  : 'border-gray-200 hover:border-gray-300'
+                  ? 'border-blue-500 bg-blue-50 shadow-sm'
+                  : 'border-gray-100 hover:border-gray-200 bg-gray-50/50'
               }`}
             >
-              <div className="text-xl mb-1">
-                {dest === 'monthly' ? '📊' : dest === 'tax' ? '🏛️' : '📊🏛️'}
+              <div className={`mx-auto w-8 h-8 rounded-lg flex items-center justify-center mb-1.5 ${
+                destination === dest ? 'bg-blue-100' : 'bg-gray-100'
+              }`}>
+                {dest === 'monthly' ? (
+                  <ChartIcon size={16} className={destination === dest ? 'text-blue-600' : 'text-gray-400'} />
+                ) : dest === 'tax' ? (
+                  <TaxIcon size={16} className={destination === dest ? 'text-blue-600' : 'text-gray-400'} />
+                ) : (
+                  <div className="flex -space-x-1">
+                    <ChartIcon size={12} className={destination === dest ? 'text-blue-600' : 'text-gray-400'} />
+                    <TaxIcon size={12} className={destination === dest ? 'text-blue-600' : 'text-gray-400'} />
+                  </div>
+                )}
               </div>
-              <div className="text-xs font-medium">
+              <div className={`text-xs font-semibold ${destination === dest ? 'text-blue-700' : 'text-gray-600'}`}>
                 {t(locale, dest === 'monthly' ? 'destMonthly' : dest === 'tax' ? 'destTax' : 'destBoth')}
               </div>
-              <div className="text-[10px] text-gray-500 mt-0.5">
+              <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">
                 {t(locale, dest === 'monthly' ? 'destMonthlyDesc' : dest === 'tax' ? 'destTaxDesc' : 'destBothDesc')}
               </div>
             </button>
@@ -245,19 +274,26 @@ export function ReviewForm({ receiptData, receiptImage, onReset }: Props) {
       </div>
 
       {/* Action Buttons */}
-      <div className="flex gap-3 pt-2">
+      <div className="flex gap-3 pt-1 pb-4">
         <button
           onClick={onReset}
-          className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-xl font-medium transition-colors"
+          className="flex-1 bg-white hover:bg-gray-50 text-gray-600 py-3.5 rounded-xl font-medium border border-gray-200 shadow-sm active:scale-[0.98]"
         >
           {t(locale, 'actionCancel')}
         </button>
         <button
           onClick={handleSave}
           disabled={saving}
-          className="flex-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white py-3 px-8 rounded-xl font-semibold transition-colors"
+          className="flex-[2] bg-gradient-primary hover:shadow-lg disabled:opacity-60 text-white py-3.5 px-8 rounded-xl font-semibold shadow-md active:scale-[0.98] transition-all"
         >
-          {saving ? t(locale, 'actionSaving') : t(locale, 'actionSave')}
+          {saving ? (
+            <span className="flex items-center justify-center gap-2">
+              <SpinnerIcon size={18} />
+              {t(locale, 'actionSaving')}
+            </span>
+          ) : (
+            t(locale, 'actionSave')
+          )}
         </button>
       </div>
     </div>

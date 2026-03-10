@@ -32,8 +32,16 @@ export function Providers({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const deleteExpense = useCallback((id: string) => {
+    setExpenses(prev => {
+      const next = prev.filter(e => e.id !== id);
+      localStorage.setItem('keihi-expenses', JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   return (
-    <AppContext.Provider value={{ locale, setLocale, expenses, addExpense }}>
+    <AppContext.Provider value={{ locale, setLocale, expenses, addExpense, deleteExpense }}>
       {children}
     </AppContext.Provider>
   );

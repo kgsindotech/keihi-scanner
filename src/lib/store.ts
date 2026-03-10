@@ -45,6 +45,7 @@ export interface AppContextType {
   setLocale: (locale: Locale) => void;
   expenses: Expense[];
   addExpense: (expense: Expense) => void;
+  deleteExpense: (id: string) => void;
 }
 
 export const AppContext = createContext<AppContextType>({
@@ -52,6 +53,7 @@ export const AppContext = createContext<AppContextType>({
   setLocale: () => {},
   expenses: [],
   addExpense: () => {},
+  deleteExpense: () => {},
 });
 
 export const useApp = () => useContext(AppContext);
