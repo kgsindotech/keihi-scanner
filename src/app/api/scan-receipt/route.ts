@@ -26,29 +26,31 @@ export async function POST(req: NextRequest) {
     const mediaType = matches[1] as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
     const base64Data = matches[2];
 
-    const prompt = `You are a Japanese receipt/bill reader for expense tracking. Analyze this receipt image and extract the following information.
+    const prompt = `You are an expert Japanese receipt/bill reader for expense tracking. Analyze this receipt image carefully.
 
-IMPORTANT RULES:
-- For dates: Convert Japanese era dates (令和7年 = 2025, stamps like 25.1.28 = 2025-01-28, 07-03-14 = 2025-03-14)
-- For amounts: Extract the TOTAL amount (合計, 領収金額, 請求金額, 金額). Always use the biggest/final number including tax.
-- For vendor: Extract the store/company name EXACTLY as printed on the receipt (keep Japanese names in Japanese)
-- For tax category (勘定科目): Choose the BEST match from this list:
-  通信費, 消耗品費, 外注費, 接待交際費, 地代家賃, 保険料, 広告宣伝費, 修繕費, 新聞図書費, 研修費, 旅費交通費, 水道光熱費, 振込手数料, その他経費
-- For payment method: Use JAPANESE names only: 現金, PayPay, クレジットカード, 銀行振込, ICカード
-- For tax sheet type: "bank" if it's a bank transfer/invoice, "other" if paid by cash/card/PayPay/IC card
-- Confidence: 0-100 based on how clearly you could read the receipt
+IMPORTANT: The image may be ROTATED (sideways, upside down). Read the text regardless of orientation. Japanese receipts are often vertical text (縦書き) — handle this correctly.
 
-CRITICAL: ALL fields (vendor, category, notes, paymentMethod) MUST be in JAPANESE. This data goes directly into a Japanese tax filing spreadsheet. Even if the user interface is in English, the extracted data must always be Japanese.
+READING RULES:
+- DATE: Look for patterns like 2026年03月09日, 2026/03/09, or era dates (令和7年 = 2025, stamps like 25.1.28 = 2025-01-28, 07-03-14 = 2025-03-14). The date is usually near the top of the receipt.
+- AMOUNT: Find the TOTAL (合計, 領収金額, 請求金額, 金額). Use the BIGGEST number including tax. Look for ¥ symbol.
+- VENDOR: Read the FULL store/company name. It is usually the LARGEST text on the receipt, or printed at the bottom with address. Include (株) or other suffixes. Example: "SHトレーディング(株) ケバブハウス" not just "SH".
+- TAX CATEGORY (勘定科目): Choose the BEST match:
+  通信費 = phone/internet, 消耗品費 = supplies, 外注費 = outsourcing, 接待交際費 = meals/entertainment with clients, 地代家賃 = rent, 保険料 = insurance, 広告宣伝費 = advertising, 修繕費 = repairs, 新聞図書費 = books, 研修費 = training, 旅費交通費 = transport/travel, 水道光熱費 = utilities, 振込手数料 = bank fees, その他経費 = other
+  HINT: If the receipt is from a restaurant/food shop → 接待交際費 (if business) or 消耗品費 (if personal supplies). If it says ケバブ, レストラン, 食堂, カフェ → likely 接待交際費.
+- PAYMENT: Detect from receipt: 現金 (cash), PayPay, クレジットカード (credit card), 銀行振込 (bank), ICカード (IC card). If receipt says 現金 or shows cash payment → 現金.
+- TAX SHEET: "bank" = bank transfer/invoice, "other" = cash/card/PayPay/IC card
 
-Respond ONLY with valid JSON, no markdown, no explanation:
+CRITICAL: ALL text fields MUST be in JAPANESE. This goes to a Japanese tax filing spreadsheet.
+
+Respond ONLY with valid JSON, no markdown:
 {
   "date": "YYYY-MM-DD",
   "amount": 1234,
-  "vendor": "店名（日本語で）",
-  "category": "カテゴリ（日本語で）",
-  "taxCategory": "勘定科目（日本語で）",
-  "notes": "購入内容の簡単な説明（日本語で）",
-  "notesEn": "Same description in English for UI display",
+  "vendor": "完全な店名（日本語）",
+  "category": "カテゴリ（日本語）",
+  "taxCategory": "勘定科目（上記リストから選択）",
+  "notes": "購入内容の説明（日本語）",
+  "notesEn": "Same description in English",
   "paymentMethod": "現金/PayPay/クレジットカード/銀行振込/ICカード",
   "taxSheetType": "bank or other",
   "confidence": 85
