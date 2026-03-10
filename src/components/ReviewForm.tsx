@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useApp } from '@/lib/store';
 import { t } from '@/lib/i18n';
 import { taxCategories, paymentMethods } from '@/lib/categories';
@@ -15,18 +15,32 @@ interface Props {
 }
 
 export function ReviewForm({ receiptData, receiptImage, onReset }: Props) {
-  const { locale, addExpense } = useApp();
+  const { locale, addExpense, expenses } = useApp();
   const [data, setData] = useState<ReceiptData>(receiptData);
   const [destination, setDestination] = useState<Destination>('both');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [duplicateOverride, setDuplicateOverride] = useState(false);
 
   const update = (field: keyof ReceiptData, value: string | number) => {
     setData(prev => ({ ...prev, [field]: value }));
   };
 
+  // Check for duplicate: same date + amount, or same date + similar vendor
+  const duplicate = useMemo(() => {
+    return expenses.find(e =>
+      e.date === data.date &&
+      e.amount === data.amount &&
+      (e.vendor === data.vendor || e.vendor.includes(data.vendor) || data.vendor.includes(e.vendor))
+    );
+  }, [expenses, data.date, data.amount, data.vendor]);
+
   const handleSave = async () => {
+    // Block save if duplicate found and user hasn't confirmed override
+    if (duplicate && !duplicateOverride) {
+      return;
+    }
     setSaving(true);
     setSaveError(null);
 
@@ -273,6 +287,31 @@ export function ReviewForm({ receiptData, receiptImage, onReset }: Props) {
         </div>
       </div>
 
+      {/* Duplicate Warning */}
+      {duplicate && !duplicateOverride && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 animate-fade-in-up">
+          <div className="flex items-start gap-3">
+            <AlertIcon size={20} className="text-amber-500 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-amber-800">
+                {locale === 'ja' ? '重複の可能性があります' : 'Possible Duplicate'}
+              </p>
+              <p className="text-xs text-amber-600 mt-1">
+                {locale === 'ja'
+                  ? `${duplicate.date} に ${duplicate.vendor} ¥${duplicate.amount.toLocaleString('ja-JP')} が既に登録されています。`
+                  : `${duplicate.vendor} ¥${duplicate.amount.toLocaleString('ja-JP')} on ${duplicate.date} already exists.`}
+              </p>
+              <button
+                onClick={() => setDuplicateOverride(true)}
+                className="mt-2.5 text-xs font-semibold text-amber-700 bg-amber-100 hover:bg-amber-200 px-3 py-1.5 rounded-lg transition-colors"
+              >
+                {locale === 'ja' ? 'それでも保存する' : 'Save Anyway'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Action Buttons */}
       <div className="flex gap-3 pt-1 pb-4">
         <button
@@ -283,8 +322,12 @@ export function ReviewForm({ receiptData, receiptImage, onReset }: Props) {
         </button>
         <button
           onClick={handleSave}
-          disabled={saving}
-          className="flex-[2] bg-gradient-primary hover:shadow-lg disabled:opacity-60 text-white py-3.5 px-8 rounded-xl font-semibold shadow-md active:scale-[0.98] transition-all"
+          disabled={saving || (!!duplicate && !duplicateOverride)}
+          className={`flex-[2] py-3.5 px-8 rounded-xl font-semibold shadow-md active:scale-[0.98] transition-all ${
+            duplicate && !duplicateOverride
+              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              : 'bg-gradient-primary hover:shadow-lg disabled:opacity-60 text-white'
+          }`}
         >
           {saving ? (
             <span className="flex items-center justify-center gap-2">
