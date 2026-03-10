@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+}
+
+body {
+  background: #f9fafb;
+  font-family: var(--font-sans), 'Hiragino Sans', 'Meiryo', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Smooth transitions for all interactive elements */
+button, a, input, select, textarea {
+  transition: all 0.15s ease;
+}
+
+/* Hide scrollbar on mobile nav */
+nav {
+  -webkit-overflow-scrolling: touch;
+}
