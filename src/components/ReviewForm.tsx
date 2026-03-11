@@ -36,11 +36,21 @@ export function ReviewForm({ receiptData, receiptImage, onReset }: Props) {
     );
   }, [expenses, data.date, data.amount, data.vendor]);
 
+  // Input validation
+  const validationErrors = useMemo(() => {
+    const errors: string[] = [];
+    if (!data.vendor.trim()) errors.push(locale === 'ja' ? '取引先を入力してください' : 'Vendor is required');
+    if (!data.amount || data.amount <= 0) errors.push(locale === 'ja' ? '金額は0より大きい値を入力' : 'Amount must be greater than 0');
+    if (!data.date) errors.push(locale === 'ja' ? '日付を入力してください' : 'Date is required');
+    const today = new Date().toISOString().split('T')[0];
+    if (data.date > today) errors.push(locale === 'ja' ? '未来の日付は使用できません' : 'Future dates are not allowed');
+    return errors;
+  }, [data.vendor, data.amount, data.date, locale]);
+
   const handleSave = async () => {
-    // Block save if duplicate found and user hasn't confirmed override
-    if (duplicate && !duplicateOverride) {
-      return;
-    }
+    // Block save if validation fails or duplicate not overridden
+    if (validationErrors.length > 0) return;
+    if (duplicate && !duplicateOverride) return;
     setSaving(true);
     setSaveError(null);
 
@@ -287,6 +297,39 @@ export function ReviewForm({ receiptData, receiptImage, onReset }: Props) {
         </div>
       </div>
 
+      {/* Low Confidence Warning */}
+      {data.confidence < 50 && (
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 animate-fade-in-up">
+          <div className="flex items-start gap-3">
+            <AlertIcon size={20} className="text-red-500 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-red-800">
+                {locale === 'ja' ? 'AI読み取り精度が低いです' : 'Low AI Confidence'}
+              </p>
+              <p className="text-xs text-red-600 mt-1">
+                {locale === 'ja'
+                  ? '各項目を手動で確認・修正してから保存してください。'
+                  : 'Please manually verify all fields before saving.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Validation Errors */}
+      {validationErrors.length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 animate-fade-in-up">
+          <div className="flex items-start gap-3">
+            <AlertIcon size={20} className="text-red-500 shrink-0 mt-0.5" />
+            <div>
+              {validationErrors.map((err, i) => (
+                <p key={i} className="text-xs text-red-600">{err}</p>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Duplicate Warning */}
       {duplicate && !duplicateOverride && (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 animate-fade-in-up">
@@ -322,9 +365,9 @@ export function ReviewForm({ receiptData, receiptImage, onReset }: Props) {
         </button>
         <button
           onClick={handleSave}
-          disabled={saving || (!!duplicate && !duplicateOverride)}
+          disabled={saving || validationErrors.length > 0 || (!!duplicate && !duplicateOverride)}
           className={`flex-[2] py-3.5 px-8 rounded-xl font-semibold shadow-md active:scale-[0.98] transition-all ${
-            duplicate && !duplicateOverride
+            validationErrors.length > 0 || (duplicate && !duplicateOverride)
               ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
               : 'bg-gradient-primary hover:shadow-lg disabled:opacity-60 text-white'
           }`}

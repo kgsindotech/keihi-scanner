@@ -4,7 +4,8 @@ import { useState, useRef } from 'react';
 import { useApp } from '@/lib/store';
 import { t } from '@/lib/i18n';
 import { ReviewForm } from '@/components/ReviewForm';
-import { CameraIcon, FolderIcon, UploadIcon, SearchIcon, SpinnerIcon } from '@/components/Icons';
+import { CameraIcon, FolderIcon, UploadIcon, SearchIcon, SpinnerIcon, AlertIcon } from '@/components/Icons';
+import { compressImage, getBase64SizeKB } from '@/lib/image-utils';
 import type { ReceiptData } from '@/lib/store';
 
 export default function ScanPage() {
@@ -15,19 +16,32 @@ export default function ScanPage() {
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [imageSize, setImageSize] = useState<string>('');
+  const [offline, setOffline] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFile = (file: File) => {
+  const handleFile = async (file: File) => {
     if (!file.type.startsWith('image/')) return;
     setFileName(file.name);
     setError(null);
     setReceiptData(null);
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       const base64 = e.target?.result as string;
-      setImage(base64);
+      const originalKB = getBase64SizeKB(base64);
+
+      // Compress if larger than 500KB
+      if (originalKB > 500) {
+        const compressed = await compressImage(base64);
+        const compressedKB = getBase64SizeKB(compressed);
+        setImageSize(`${Math.round(originalKB / 1024 * 10) / 10}MB → ${compressedKB}KB`);
+        setImage(compressed);
+      } else {
+        setImageSize(`${originalKB}KB`);
+        setImage(base64);
+      }
     };
     reader.readAsDataURL(file);
   };
@@ -41,6 +55,13 @@ export default function ScanPage() {
 
   const handleScan = async () => {
     if (!image) return;
+
+    // Check online status
+    if (!navigator.onLine) {
+      setOffline(true);
+      return;
+    }
+    setOffline(false);
     setProcessing(true);
     setError(null);
 
@@ -59,7 +80,11 @@ export default function ScanPage() {
       const data: ReceiptData = await res.json();
       setReceiptData(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t(locale, 'msgError'));
+      if (!navigator.onLine) {
+        setOffline(true);
+      } else {
+        setError(err instanceof Error ? err.message : t(locale, 'msgError'));
+      }
     } finally {
       setProcessing(false);
     }
@@ -101,7 +126,9 @@ export default function ScanPage() {
             {image ? (
               <div className="space-y-3 animate-scale-in">
                 <img src={image} alt="Receipt" className="max-h-56 mx-auto rounded-xl shadow-lg" />
-                <p className="text-xs text-gray-400 truncate max-w-[200px] mx-auto">{fileName}</p>
+                <p className="text-xs text-gray-400 truncate max-w-[200px] mx-auto">
+                  {fileName} {imageSize && <span className="text-green-500">({imageSize})</span>}
+                </p>
               </div>
             ) : (
               <div className="space-y-4 py-4">
@@ -176,9 +203,31 @@ export default function ScanPage() {
             </button>
           )}
 
+          {/* Offline Warning */}
+          {offline && (
+            <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl animate-fade-in-up">
+              <div className="flex items-center gap-2 text-amber-700">
+                <AlertIcon size={18} />
+                <span className="text-sm font-medium">
+                  {locale === 'ja' ? 'インターネット接続がありません' : 'No internet connection'}
+                </span>
+              </div>
+              <p className="text-xs text-amber-600 mt-1 ml-6">
+                {locale === 'ja' ? '接続を確認してからもう一度お試しください' : 'Check your connection and try again'}
+              </p>
+            </div>
+          )}
+
+          {/* Error with Retry */}
           {error && (
-            <div className="mt-4 p-4 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm animate-fade-in-up">
-              {error}
+            <div className="mt-4 p-4 bg-red-50 border border-red-100 rounded-xl animate-fade-in-up">
+              <p className="text-red-600 text-sm">{error}</p>
+              <button
+                onClick={handleScan}
+                className="mt-2 text-xs font-semibold text-red-700 bg-red-100 hover:bg-red-200 px-3 py-1.5 rounded-lg transition-colors"
+              >
+                {t(locale, 'actionRetry')}
+              </button>
             </div>
           )}
         </div>
